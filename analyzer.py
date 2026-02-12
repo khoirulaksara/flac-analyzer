@@ -64,10 +64,14 @@ class AcousticUltraFinal(QMainWindow):
         self.table.setHorizontalHeaderLabels(["FILE NAME", "TECH SPECS", "ENCODER", "STATUS", "CUTOFF", "PATH"])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.table.setAlternatingRowColors(True)
         self.table.setColumnHidden(5, True) 
         self.table.verticalHeader().setVisible(False)
         self.table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self.show_context_menu)
+        self.table.setMouseTracking(True)
+        self.last_hover_row = -1
+        self.table.cellEntered.connect(self.on_cell_entered)
         self.table.itemClicked.connect(self.update_visualizer)
 
         # Spectrogram Panel
@@ -107,9 +111,9 @@ class AcousticUltraFinal(QMainWindow):
 
     def apply_styles(self):
         self.setStyleSheet("""
-            QMainWindow { background-color: #0f172a; }
-            #dropFrame { background-color: #1e293b; border: 2px dashed #38bdf8; border-radius: 12px; color: #94a3b8; font-weight: 600; }
-            QTableWidget { background-color: #1e293b; border: 1px solid #334155; border-radius: 12px; color: #e2e8f0; alternate-background-color: #161e2e; }
+            QTableWidget { background-color: #1e293b; border: 1px solid #334155; border-radius: 12px; color: #e2e8f0; alternate-background-color: #161e2e; selection-background-color: #334155; selection-color: #38bdf8; outline: 0; }
+            QTableWidget::item:selected { background-color: #334155; color: #38bdf8; border: none; }
+            QTableWidget::item:focus { border: none; outline: none; }
             QHeaderView::section { background-color: #334155; color: #38bdf8; padding: 12px; border: none; font-size: 10px; font-weight: 800; }
             #specCard { background-color: #1e293b; border-radius: 15px; border: 1px solid #334155; }
             QPushButton { background-color: #38bdf8; color: #0f172a; border-radius: 8px; padding: 8px 15px; font-weight: bold; }
@@ -180,6 +184,21 @@ class AcousticUltraFinal(QMainWindow):
         self.table.item(row, 4).setText(data.get("cutoff"))
         self.progress_bar.setValue(100)
 
+    def on_cell_entered(self, row, column):
+        if row == self.last_hover_row: return
+        
+        # Clear previous hover
+        if self.last_hover_row >= 0:
+            for c in range(self.table.columnCount()):
+                item = self.table.item(self.last_hover_row, c)
+                if item: item.setData(Qt.ItemDataRole.BackgroundRole, None)
+                
+        # Set new hover
+        self.last_hover_row = row
+        for c in range(self.table.columnCount()):
+            item = self.table.item(row, c)
+            if item: item.setBackground(QColor("#2d3748"))
+
     def update_visualizer(self, item):
         row = item.row()
         if row in self.spectrum_cache:
@@ -223,6 +242,7 @@ class AcousticUltraFinal(QMainWindow):
         self.title.setText("Cleanup Finished!")
 
     def reset_session(self):
+        self.last_hover_row = -1
         self.table.setRowCount(0)
         self.processed_files.clear()
         self.ax.clear()
